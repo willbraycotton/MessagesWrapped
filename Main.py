@@ -11,7 +11,7 @@ custom_stopwords = ENGLISH_STOP_WORDS.union(
      "all","any","can","had","her","his","its","not","she","him","they","them","this","that","what",
      "with","was","from","there's","there", "at", "by", "an", "be", "if", "in", "is", "it", "of", "on", "or", "as",
      "my", "we", "so", "to", "too", "we're", "weve", "we'll", "he'll", "she'll", "they'll", "you'll","laughed", "emphasized","questioned","loved","i’m"
-     ,"it’s","i’ll","image"
+     ,"it’s","i’ll","image", "None", " "
     }
     )
 
@@ -45,6 +45,8 @@ JOIN message m ON cmj.message_id = m.ROWID
 LEFT JOIN message original ON SUBSTR(m.associated_message_guid, 5) = original.guid -- Match trimmed GUID
 WHERE c.display_name = ?
 AND m.associated_message_guid IS NOT NULL
+AND original.text IS NOT NULL
+AND LENGTH(original.text) > 1
 GROUP BY original.guid
 ORDER BY reaction_count DESC
 LIMIT 10;
@@ -77,6 +79,32 @@ df = pd.read_sql_query(query, conn, params=(groupchat_name,))
 
 print(df)
 
+# Your most common words used
+query = """
+SELECT 
+    m.text
+FROM message m
+WHERE m.is_from_me = 1
+AND m.text IS NOT NULL
+AND LENGTH(m.text) > 1
+"""
+
+
+df = pd.read_sql_query(query, conn)
+
+words = {}
+for message in df['text']:
+    for word in message.split():
+        word = word.lower().strip('.,!?;"\'()[]{}')
+        if word and word not in custom_stopwords and len(word) > 1: 
+            words[word] = words.get(word, 0) + 1
+sorted_words = sorted(words.items(), key=lambda item: item[1], reverse=True)[:10]
+
+print("Top 10 of your most used words:")
+for word, count in sorted_words:
+    print(f"{word}: {count}")
+
+
 # Most Common words used in a groupchat
 query = """
 SELECT 
@@ -88,7 +116,7 @@ WHERE c.display_name = ?
 AND text is NOT NULL
 """
 
-'''df = pd.read_sql_query(query, conn, params=(groupchat_name,))
+df = pd.read_sql_query(query, conn, params=(groupchat_name,))
 
 words = {}
 for message in df['text']:
@@ -96,11 +124,11 @@ for message in df['text']:
         word = word.lower().strip('.,!?;"\'()[]{}')
         if word and word not in custom_stopwords and len(word) > 1: 
             words[word] = words.get(word, 0) + 1
-sorted_words = sorted(words.items(), key=lambda item: item[1], reverse=True)[:10]
+sorted_words = sorted(words.items(), key=lambda item: item[1], reverse=True)[:20]
 
-print("Top 10 most used words:")
+print(f"Top 10 most used words in {groupchat_name}:")
 for word, count in sorted_words:
-    print(f"{word}: {count}")'''
+    print(f"{word}: {count}")
 
 
 #Number of messages you sent
@@ -115,6 +143,40 @@ LIMIT 10;
 """
 
 
-print('Numbber of messages you sent this year:')
+print('Number of messages you sent this year:')
 df = pd.read_sql_query(query, conn, params=(this_year,))
 print(df)
+
+#Number of messages you recieved 
+
+query = """
+SELECT 
+    COUNT(text) as message_count
+FROM message
+WHERE is_from_me = 0
+AND datetime(date/1000000000 + 978307200, 'unixepoch', 'localtime') >= ?
+LIMIT 10;"""
+
+print('Number of messages you received this year:')
+df = pd.read_sql_query(query, conn, params=(this_year,))
+print(df)
+
+# Most messages in a day
+
+query = """
+SELECT 
+    COUNT(text) AS message_count
+    , DATE(datetime(date/1000000000 + 978307200, 'unixepoch', 'localtime')) AS message_date
+FROM message
+WHERE is_from_me = 1
+AND datetime(date/1000000000 + 978307200, 'unixepoch', 'localtime') >= ?
+GROUP BY message_date
+ORDER BY message_count DESC
+LIMIT 10;
+"""
+
+print('Most messages sent by you in a day:')
+df = pd.read_sql_query(query, conn, params=(this_year,))
+print(df)
+
+
