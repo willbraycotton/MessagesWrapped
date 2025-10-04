@@ -1,182 +1,49 @@
 import sqlite3
-import datetime
-import pandas as pd
-from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
 
+import SVGConfig
+import SQLQueries 
 
-ENGLISH_STOP_WORDS = set(ENGLISH_STOP_WORDS)
-custom_stopwords = ENGLISH_STOP_WORDS.union(
-    {"lol", "omg", "bruh", "lmao", "idk", "u", "ur","i'm","like","get","got","im","dont","cant","thats","hes","shes","ive","ya","ya'll","yall",
-     "aint","wan","gonna","wanna","na","oh","hey","hi","hello","the","and","but","for","are","you","your","yours",
-     "all","any","can","had","her","his","its","not","she","him","they","them","this","that","what",
-     "with","was","from","there's","there", "at", "by", "an", "be", "if", "in", "is", "it", "of", "on", "or", "as",
-     "my", "we", "so", "to", "too", "we're", "weve", "we'll", "he'll", "she'll", "they'll", "you'll","laughed", "emphasized","questioned","loved","i’m"
-     ,"it’s","i’ll","image", "None", " "
+GROUPCHATNAME = "test"
+
+if __name__ == "__main__":
+    conn = sqlite3.connect("chat.db")
+
+    #Overall Section
+
+    replacements_personal = {
+        "{{ms}}": str(SQLQueries.get_number_of_messages_sent(conn)[0][0])
     }
-    )
-
-groupchat_name = ''
-my_phone_number = ''
-this_year = '2025-00-00 00:00:00'
-
-# Connect to database
-conn = sqlite3.connect("chat.db")
 
 
-## METRICS
-# Messages Sent by you 
-# Top 10 most sent messages and Top 10 most received messages
-# Top 10 most used words
-# Most messages in a day
-# Most reacted to messages in a groupchat 
-# Top Texters in each groupchat
-# Top 10 most used words in a groupchat
-
-# Returns Top 10 most reacted messages in a specific group chat
-query = """
-SELECT 
-    original.text AS original_message,
-    COUNT(m.associated_message_guid) AS reaction_count,
-    datetime(original.date/1000000000 + 978307200, 'unixepoch', 'localtime') AS original_message_date
-    , c.display_name 
-FROM chat c
-JOIN chat_message_join cmj ON c.ROWID = cmj.chat_id
-JOIN message m ON cmj.message_id = m.ROWID
-LEFT JOIN message original ON SUBSTR(m.associated_message_guid, 5) = original.guid -- Match trimmed GUID
-WHERE c.display_name = ?
-AND m.associated_message_guid IS NOT NULL
-AND original.text IS NOT NULL
-AND LENGTH(original.text) > 1
-GROUP BY original.guid
-ORDER BY reaction_count DESC
-LIMIT 10;
-"""
-print("Top 10 most reacted to messages:")
-df = pd.read_sql_query(query, conn, params=(groupchat_name,))
-
-print(df)
-
-# Who sent the most messages in a groupchat
-query = """
-SELECT 
-    CASE 
-        WHEN m.handle_id IS NULL OR m.handle_id = 0 THEN 'You' 
-        ELSE h.id 
-    END AS sender,
-    COUNT(m.text) AS message_count,
-    c.display_name
-FROM chat c
-JOIN chat_message_join cmj ON c.ROWID = cmj.chat_id
-JOIN message m ON cmj.message_id = m.ROWID
-LEFT JOIN handle h ON m.handle_id = h.ROWID
-WHERE c.display_name = ?
-GROUP BY sender
-ORDER BY message_count DESC;
-"""
-
-print("Top texters in the groupchat:")
-df = pd.read_sql_query(query, conn, params=(groupchat_name,))
-
-print(df)
-
-# Your most common words used
-query = """
-SELECT 
-    m.text
-FROM message m
-WHERE m.is_from_me = 1
-AND m.text IS NOT NULL
-AND LENGTH(m.text) > 1
-"""
 
 
-df = pd.read_sql_query(query, conn)
+    # Personal Section
+    most_used_words = SQLQueries.get_your_most_common_words(conn)
 
-words = {}
-for message in df['text']:
-    for word in message.split():
-        word = word.lower().strip('.,!?;"\'()[]{}')
-        if word and word not in custom_stopwords and len(word) > 1: 
-            words[word] = words.get(word, 0) + 1
-sorted_words = sorted(words.items(), key=lambda item: item[1], reverse=True)[:10]
+    replacements_personal = {
+        "{{word_1}}": most_used_words[0][0]
+        , "{{word_2}}": most_used_words[1][0]
+        , "{{word_3}}": most_used_words[2][0]
+        , "{{word_4}}": most_used_words[3][0]
+        , "{{word_5}}": most_used_words[4][0]
+        , "{{chat_1}}": "test"
+    }
 
-print("Top 10 of your most used words:")
-for word, count in sorted_words:
-    print(f"{word}: {count}")
+    #GroupChat Section
+    most_used_words_groupchat = SQLQueries.get_most_common_words_in_groupchat(conn, GROUPCHATNAME)
 
-
-# Most Common words used in a groupchat
-query = """
-SELECT 
-    m.text
-FROM message m
-JOIN chat_message_join cmj ON m.ROWID = cmj.message_id
-JOIN chat c ON cmj.chat_id = c.ROWID
-WHERE c.display_name = ?
-AND text is NOT NULL
-"""
-
-df = pd.read_sql_query(query, conn, params=(groupchat_name,))
-
-words = {}
-for message in df['text']:
-    for word in message.split():
-        word = word.lower().strip('.,!?;"\'()[]{}')
-        if word and word not in custom_stopwords and len(word) > 1: 
-            words[word] = words.get(word, 0) + 1
-sorted_words = sorted(words.items(), key=lambda item: item[1], reverse=True)[:20]
-
-print(f"Top 10 most used words in {groupchat_name}:")
-for word, count in sorted_words:
-    print(f"{word}: {count}")
+    replacements_GroupChat = {
+        "{{word_1}}": most_used_words_groupchat[0][0]
+        , "{{word_2}}": most_used_words_groupchat[1][0]
+        , "{{word_3}}": most_used_words_groupchat[2][0]
+        , "{{word_4}}": most_used_words_groupchat[3][0]
+        , "{{word_5}}": most_used_words_groupchat[4][0]
+        , "{{chat_1}}": "test"
+    }
 
 
-#Number of messages you sent
 
-query = """
-SELECT
-    COUNT(text) as message_count
-FROM message 
-WHERE is_from_me = 1
-AND datetime(date/1000000000 + 978307200, 'unixepoch', 'localtime') >= ?
-LIMIT 10;
-"""
-
-
-print('Number of messages you sent this year:')
-df = pd.read_sql_query(query, conn, params=(this_year,))
-print(df)
-
-#Number of messages you recieved 
-
-query = """
-SELECT 
-    COUNT(text) as message_count
-FROM message
-WHERE is_from_me = 0
-AND datetime(date/1000000000 + 978307200, 'unixepoch', 'localtime') >= ?
-LIMIT 10;"""
-
-print('Number of messages you received this year:')
-df = pd.read_sql_query(query, conn, params=(this_year,))
-print(df)
-
-# Most messages in a day
-
-query = """
-SELECT 
-    COUNT(text) AS message_count
-    , DATE(datetime(date/1000000000 + 978307200, 'unixepoch', 'localtime')) AS message_date
-FROM message
-WHERE is_from_me = 1
-AND datetime(date/1000000000 + 978307200, 'unixepoch', 'localtime') >= ?
-GROUP BY message_date
-ORDER BY message_count DESC
-LIMIT 10;
-"""
-
-print('Most messages sent by you in a day:')
-df = pd.read_sql_query(query, conn, params=(this_year,))
-print(df)
-
+    SVGConfig.update_svg("overall_original.svg", "overall.svg", replacements_personal)
+    SVGConfig.update_svg("personal_original.svg", "personal.svg", replacements_personal)
+    SVGConfig.update_svg("groupchat_original.svg", "groupchat.svg", replacements_GroupChat)
 

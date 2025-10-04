@@ -11,12 +11,16 @@ def update_svg(template_file, output_file, replacements):
     tree.write(output_file)
     print(f"Updated SVG saved as {output_file}")
 
-replacements = {
-    "{{mr}}": "John Doe",
-}
+
 
 
 
 
 if __name__ == "__main__":
+
+    replacements = {
+        "{{mr}}": "John Doe"
+    }
+
     update_svg("Frame 4 1.svg", "output.svg", replacements)
+    
