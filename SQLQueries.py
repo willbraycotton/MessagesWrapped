@@ -162,26 +162,42 @@ def get_most_messages_in_a_day(conn):
     df = pd.read_sql_query(query, conn, params=(this_year,))
     return df
 
+# Most active numbers
+def get_most_active_numbers(conn):
+    query = """
+    SELECT 
+        h.id as sender
+        , COUNT(m.text) AS message_count
+    FROM message m
+    LEFT JOIN handle h ON m.handle_id = h.ROWID
+    GROUP BY sender
+    ORDER BY message_count DESC
+    LIMIT 5;
+    """
 
+    df = pd.read_sql_query(query, conn)
+    return df
 
 
 if __name__ == "__main__":
     
     conn = sqlite3.connect("chat.db")
 
-    print("Most Reacted Messages:")
-    print(get_most_reacted_messages(conn, groupchat_name))
-    print("\nTop Texters:")
-    print(get_top_texters(conn, groupchat_name))
-    print("\nYour Most Common Words:")
-    print(get_your_most_common_words(conn))
-    print("\nMost Common Words in Groupchat:")
-    print(get_most_common_words_in_groupchat(conn, groupchat_name))
-    print("\nNumber of Messages Sent This Year:")
-    print(get_number_of_messages_sent(conn))
-    print("\nNumber of Messages Received This Year:")
-    print(get_number_of_messages_received(conn))
-    print("\nMost Messages Sent in a Day This Year:")
-    print(get_most_messages_in_a_day(conn))
+    # print("Most Reacted Messages:")
+    # print(get_most_reacted_messages(conn, groupchat_name))
+    # print("\nTop Texters:")
+    # print(get_top_texters(conn, groupchat_name))
+    # print("\nYour Most Common Words:")
+    # print(get_your_most_common_words(conn))
+    # print("\nMost Common Words in Groupchat:")
+    # print(get_most_common_words_in_groupchat(conn, groupchat_name))
+    # print("\nNumber of Messages Sent This Year:")
+    # print(get_number_of_messages_sent(conn))
+    # print("\nNumber of Messages Received This Year:")
+    # print(get_number_of_messages_received(conn))
+    # print("\nMost Messages Sent in a Day This Year:")
+    # print(get_most_messages_in_a_day(conn))
+    print("\nMost Active Numbers:")
+    print(get_most_active_numbers(conn))
 
     conn.close()
